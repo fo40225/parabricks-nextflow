@@ -1,39 +1,114 @@
 Parabricks-NextFlow
 -------------------
-August 2022
+2023-10-29 tested
 
 # Overview
-This repo contains experimental code for running Nvidia Clara Parabricks in NextFlow.
-
+This repo contains code for running Nvidia Clara Parabricks in NextFlow on local.
 
 # Getting Started
-After cloning this repository, you'll need a valid parabricks installation (including a license) as 
-well as a Parabricks cloud-compatible docker container to run. In addition, you should have at least one
-Parabricks compatible GPU, 12 CPU cores, and 64 GB of RAM to expect to be able to test. Two GPUs are required
-for running Parabricks in production.
+After cloning this repository, you'll need a valid parabricks installation as well as a Parabricks cloud-compatible docker container to run. In addition, you should have at least one Parabricks compatible GPU (VRAM > 16GB) to expect to be able to test.
 
+## Set up an environment
+Parabricks-NextFlow requires the following dependencies:
 
-## Set up and environment
-Parabricks-nextflow requires the following dependencies:
 - Docker
+
+https://docs.docker.com/engine/install/ubuntu/#install-using-the-convenience-script
+
+```bash
+curl -fsSL https://get.docker.com -o get-docker.sh
+sudo sh get-docker.sh
+sudo groupadd docker
+sudo usermod -aG docker $USER
+newgrp docker
+docker run --rm hello-world
+```
+
+- nvidia-drivers
+
+https://developer.nvidia.com/cuda-downloads?target_os=Linux&target_arch=x86_64&Distribution=Ubuntu&target_version=22.04&target_type=deb_network
+
+```bash
+wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb
+sudo dpkg -i cuda-keyring_1.1-1_all.deb
+sudo apt-get update
+sudo apt-get -y install cuda-drivers
+```
+
 - nvidia-docker
+
+https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html#installing-with-apt
+
+```bash
+curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg \
+  && curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
+    sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
+    sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list \
+  && \
+    sudo apt-get update
+sudo apt-get install -y nvidia-container-toolkit
+sudo docker run --rm --runtime=nvidia --gpus all nvidia/cuda:11.8.0-runtime-ubuntu22.04 nvidia-smi
+```
+
 - NextFlow
 
-After installing these tools, you will need a cloud-compatible Parabricks container and a Parabricks license.
-Please contact Nvidia for help acquiring these.
+https://www.nextflow.io/docs/latest/getstarted.html#installation
+
+```bash
+sudo apt install -y openjdk-17-jdk
+wget -qO- https://get.nextflow.io | bash
+chmod +x nextflow
+sudo mv nextflow /usr/local/bin
+```
+
+After installing these tools, you will need a compatible Parabricks container.
+
+https://catalog.ngc.nvidia.com/orgs/nvidia/teams/clara/containers/clara-parabricks
+
+```bash
+sudo docker pull nvcr.io/nvidia/clara/clara-parabricks:4.1.2-1
+```
+
+## Prepare the reference genome
+```bash
+wget http://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/000/001/405/GCA_000001405.15_GRCh38/seqs_for_alignment_pipelines.ucsc_ids/GCA_000001405.15_GRCh38_no_alt_analysis_set.fna.gz
+wget http://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/000/001/405/GCA_000001405.15_GRCh38/seqs_for_alignment_pipelines.ucsc_ids/GCA_000001405.15_GRCh38_no_alt_analysis_set.fna.fai
+wget http://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/000/001/405/GCA_000001405.15_GRCh38/seqs_for_alignment_pipelines.ucsc_ids/GCA_000001405.15_GRCh38_no_alt_analysis_set.fna.bwa_index.tar.gz
+
+gunzip GCA_000001405.15_GRCh38_no_alt_analysis_set.fna.gz
+tar axvf GCA_000001405.15_GRCh38_no_alt_analysis_set.fna.bwa_index.tar.gz
+rm GCA_000001405.15_GRCh38_no_alt_analysis_set.fna.bwa_index.tar.gz
+
+tar acvf GCA_000001405.15_GRCh38_no_alt_analysis_set.fna.tar GCA_000001405.15_GRCh38_no_alt_analysis_set.fna*
+mkdir ref
+mv GCA_000001405.15_GRCh38_no_alt_analysis_set.fna.tar ref/
+rm GCA_000001405.15_GRCh38_no_alt_analysis_set.fna*
+
+cd ref/
+wget http://storage.googleapis.com/genomics-public-data/resources/broad/hg38/v0/Mills_and_1000G_gold_standard.indels.hg38.vcf.gz
+wget http://storage.googleapis.com/genomics-public-data/resources/broad/hg38/v0/Mills_and_1000G_gold_standard.indels.hg38.vcf.gz.tbi
+```
+
+## Download test data for ERR194147 (NA12878)
+```bash
+mkdir test-data
+cd test-data
+
+wget http://ftp.sra.ebi.ac.uk/vol1/fastq/ERR194/ERR194147/ERR194147_1.fastq.gz
+wget http://ftp.sra.ebi.ac.uk/vol1/fastq/ERR194/ERR194147/ERR194147_2.fastq.gz
+```
 
 ## Running fq2bam locally
-
 The Parabricks fq2bam tool is an accelerated BWA mem implementation. The tool also includes BAM sorting, duplicate marking, and optionally Base Quality Score Recalibration (BQSR). The `fq2bam.nf` script in this repository demonstrates how to run this tool with a set of input reads, producing a BAM file, its BAI index and a BQSR report for use with HaplotypeCaller.
 
 Below is an example command line for running the fq2bam.nf script:
 
 ```bash
-~/nextflow run \
+nextflow run \
     -c config/local.nf.conf \
     -params-file example_inputs/test.fq2bam.json \
-    -with-docker 'gcr.io/clara-lifesci/parabricks-cloud:4.0.0-1.beta4' \
-    nexflow/fq2bam.nf
+    -with-docker 'nvcr.io/nvidia/clara/clara-parabricks:4.1.2-1' \
+    nextflow/fq2bam.nf
 ```
 
 Note the following:
@@ -42,92 +117,10 @@ Note the following:
 - The `-params-file` argument allows using a JSON stub for program arguments (rather than the command line). We recommend this way of invoking nextflow as it is easier to debug and more amenable to batch processing.
 
 ### Running the germline example
-
 ```bash
-~/nextflow run \
+nextflow run \
     -c config/local.nf.conf \
     -params-file example_inputs/test.germline.json \
-    -with-docker 'gcr.io/clara-lifesci/parabricks-cloud:4.0.0-1.beta4' \
+    -with-docker 'nvcr.io/nvidia/clara/clara-parabricks:4.1.2-1' \
     nextflow/germline_calling.nf
 ```
-
-### Experimenting with GCP support
-An example config file for Google Cloud Project's Life Sciences Pipelines API (PAPI) is available in `config/gcp.nf.conf`. To run on GCP, you must have a valid project with the Pipelines API enabled and have local application credentials for a service account. You will need to export your GCP project name and credential path into your environment before running, as well as define machine types and corresponding labels on each NextFlow task in your workflow.
-
-
-## Cloud GPU Availability
-
-Not all Cloud Service Providers support every NVIDIA GPU. Below we detail some basic expectations for GPU availability per cloud provider;
-for details on other CSPs, please file an issue with an example configuration file if possible.
-
-The following nextflow config guidelines apply for maximizing cost/performance on broadest available cloud GPUs (as of Parabricks 4.0).
-**Note: these recomemendations are subject to change and we encourage individual benchmarking for your workloads**. The following numbers
-were derived using 30X whole-genome sequencing (WGS) data and optimized for cost-to-performance ratio:
-
-fq2bam and alignment tasks:
-```
-      cpu = 32
-      memory = 196
-      accelerator = [request: 4, type:'nvidia-tesla-t4']
-      disk = "1000 GB"
-```
-
-For HaplotypeCaller and DeepVariant:
-```
-      cpu = 
-      memory = 196
-      accelerator = [request: 4, type:'nvidia-tesla-t4']
-      disk = "1000 GB"
-```
-
-**Note: on AWS, A10 provides further improved cost / performance**
-
-V100, and A100 GPUs offer an improvement in performance for time- or throughput-critical workloads.
-
-Many GPUs are available using spot or preemptible instances. As Parabricks is optimized for speed, the
-chance of a job completing before preemption is relatively high. We strongly recommend runnning on preemptible
-instances if cost is a consideration.
-
-
-
-**Google Cloud Life Sciences Pipelines API (PAPI)**
-- Nvidia T4 : broadly available, best cost:performance. Add this stub to your nextflow config:
-        `accelerator = [request: 4, type:'nvidia-tesla-t4']`
-- Nvidia V100 : broadly available, best performance. Add this stub to your nextflow config:
-        `accelerator = [request: 4, type:'nvidia-tesla-v100']`
-
-
-**Microsft Azure Batch**
-Azure batch does not yet support the `accelerators` directive. GPUs must be acquired by specifying a 
-GPU-powered vmType in the pool configuration, like so:
-
-
-```
-azure {
-    batch {
-        pools {
-            auto {
-               autoScale = true
-               vmType = '<GPU powered VM type>'
-               vmCount = 1
-               maxVmCount = 5
-            }
-        }
-    }
-}
-```
-
-
-Please specify one of the following GPU-powered VM types for GPU
-tasks. 
-- Nvidia V100: use `vmType = 'Standard_NC24s_v3'`
-- Nvidia T4: use `vmType = 'Standard_NC64as_T4_v3'`
-- Nvidia A100: use either `vmType = 'Standard_NC48ads_A100_v4'` (2x A100 GPUs) or `vmType = 'Standard_NC96ads_A100_v4'` (4x A100 GPUs)
-
-**Amazon Web Services (AWS) Batch**
-Complete details available [in the AWS Batch User Guide](https://docs.aws.amazon.com/batch/latest/userguide/gpu-jobs.html)
-- Nvidia T4: add the following stub to your nextflow label: `accelerator = [request: 4, type:'nvidia-tesla-t4']` OR use instance type `g4dn.12xlarge`
-- Nvidia V100: add the following stub to your nextflow label: `accelerator = [request: 4, type:'nvidia-tesla-v100']` OR use instance type `p3.8xlarge` or `p3.16xlarge`
-- Nvidia A10: add the following stub to your nextflow label: `accelerator = [request: 4, type:'nvidia-tesla-a10']` OR use instance type `g5.12xlarge`
-
-

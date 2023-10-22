@@ -1,11 +1,11 @@
 {
-    "inputFASTQ_1" : "/home/$USER/nv/parabricks-nextflow/test-data/hg0002.novaseq.pcr-free.35x.chr22.1.fq.gz",
-    "inputFASTQ_2" : "/home/$USER/nv/parabricks-nextflow/test-data/hg0002.novaseq.pcr-free.35x.chr22.2.fq.gz",
-    "inputKnownSitesVCF" : "/home/$USER/refs/Mills_and_1000G_gold_standard.indels.hg38.vcf.gz",
-    "inputKnownSitesTBI" : "/home/$USER/refs/Mills_and_1000G_gold_standard.indels.hg38.vcf.gz.tbi",
-    "inputRefTarball" : "/home/$USER/nv/parabricks-nextflow/test-data/chr22.hg38.fa.tar",
+    "inputFASTQ_1" : "/home/$USER/parabricks-nextflow/test-data/ERR194147_1.fastq.gz",
+    "inputFASTQ_2" : "/home/$USER/parabricks-nextflow/test-data/ERR194147_2.fastq.gz",
+    "inputKnownSitesVCF" : "/home/$USER/parabricks-nextflow/ref/Mills_and_1000G_gold_standard.indels.hg38.vcf.gz",
+    "inputKnownSitesTBI" : "/home/$USER/parabricks-nextflow/ref/Mills_and_1000G_gold_standard.indels.hg38.vcf.gz.tbi",
+    "inputRefTarball" : "/home/$USER/parabricks-nextflow/ref/GCA_000001405.15_GRCh38_no_alt_analysis_set.fna.tar",
+    "outdir" : "/home/$USER/parabricks-nextflow/test-data",
     "pbPATH" : "/usr/local/parabricks/pbrun",
-    "pbLicense" : "/home/$USER/3.7.0-4/parabricks/license.bin",
-    "inputSampleName" : "HG002",
-    "tmpDir" : "fq2bam"
+    "inputSampleName" : "NA12878",
+    "platformName" : "Illumina"
 }
